@@ -1,53 +1,74 @@
 public class Main {
     public static void main(String[] args) {
-        Thread fibThread = new Thread(new FibonacciRunnable(10), "Fibonacci-Thread");
-        fibThread.start();
-    }
-}
+        Thread daemonThread = new Thread(() -> {
+            Thread fibThread = new Thread(new FibonacciRunnable(10), "Fibonacci-Thread");
+            fibThread.setPriority(7);
+            fibThread.start();
 
-class FibonacciRunnable implements Runnable {
-    private final int count;
+            Thread.State lastState = null;
 
-    public FibonacciRunnable(int count) {
-        this.count = count;
-    }
+            while (fibThread.getState() != Thread.State.TERMINATED) {
+                Thread.State currentState = fibThread.getState();
 
-    public void run() {
-        Thread childThread = new Thread(() -> {
-            Thread current = Thread.currentThread();
+                if (currentState != lastState) {
+                    System.out.println("[DAEMON] State of " + fibThread.getName() + ": " + currentState);
+                    lastState = currentState;
+                }
 
-            try {
-                System.out.println(current.getName() + " sleeping for a second.");
-                Thread.sleep(1000);
-                System.out.println(current.getName() + " waked up.");
-            } catch (InterruptedException e) {
-                return;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    break;
+                }
             }
-        }, "Child-Thread");
-        childThread.start();
+
+            while (true) {
+                try {
+                    System.out.println("[DAEMON] State of " + fibThread.getName() + ": " + fibThread.getState());
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }, "Monitor-Daemon");
+
+        daemonThread.setDaemon(true);
+        daemonThread.start();
 
         try {
-            childThread.join();
+            Thread.sleep(12000);
         } catch (InterruptedException e) {
-            return;
+            e.printStackTrace();
         }
 
-        long a = 0, b = 1;
+        System.out.println("[MAIN] The main thread has finished execution.");
+    }
 
-        for (int i = 0; i < count; i++) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                return;
+    static class FibonacciRunnable implements Runnable {
+        private final int count;
+
+        public FibonacciRunnable(int count) {
+            this.count = count;
+        }
+
+        public void run() {
+            long a = 0, b = 1;
+
+            for (int i = 0; i < count; i++) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+
+                System.out.print(a + " ");
+
+                long next = a + b;
+                a = b;
+                b = next;
+
+                Thread.yield();
             }
-
-            System.out.print(a + " ");
-
-            long next = a + b;
-            a = b;
-            b = next;
-
-            Thread.yield();
         }
     }
 }
